@@ -23,6 +23,13 @@ public class EmailMessageRepository : BaseRepository<EmailMessage>, IEmailMessag
             .FirstOrDefaultAsync(m => m.MessageId == providerMessageId)
             ?? throw new KeyNotFoundException($"Message with provider ID {providerMessageId} not found");
     }
+    public async Task<IEnumerable<EmailMessage>> GetByAccountIdAsync(Guid accountId)
+    {
+        return await _dbSet
+            .Where(m => m.EmailAccountId == accountId && !m.IsDeleted)
+            .ToListAsync();
+    }
+
 
     public async Task<IEnumerable<EmailMessage>> GetByFolderAsync(
         Guid folderId, 
