@@ -7,7 +7,6 @@ namespace DafornoMail.Core.Interfaces.Repositories
         /// <summary>
         /// Returns folders belonging to the specified account.
         /// </summary>
-        Task<IEnumerable<EmailFolder>> GetByAccountIdAsync(Guid accountId);
         // CRUD operations
         Task<EmailFolder> GetByIdAsync(Guid id);
         Task<IEnumerable<EmailFolder>> GetAllAsync();

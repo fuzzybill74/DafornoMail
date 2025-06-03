@@ -5,7 +5,6 @@ namespace DafornoMail.Core.Interfaces.Repositories
     public interface IEmailAccountRepository
     {
         // CRUD operations
-        Task<EmailAccount> GetByIdAsync(Guid id);
         Task<IEnumerable<EmailAccount>> GetAllAsync();
         Task<EmailAccount> AddAsync(EmailAccount account);
 
