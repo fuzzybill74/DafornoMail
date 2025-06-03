@@ -1,0 +1,201 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudGrid>
+            <MudItem xs="12" Class="text-center mb-8">
+                <MudAvatar Size="Size.Large" Color="Color.Primary" Class="mb-4">
+                    <MudIcon Size="Size.Large" Icon="@Icons.Material.Filled.Mail" />
+                </MudAvatar>
+                <MudText Typo="Typo.h4" Class="mb-2">Welcome to Daforno Mail</MudText>
+                <MudText Typo="Typo.body2" Color="Color.TextSecondary">
+                    @_pageTitle
+                </MudText>
+            </MudItem>
+
+            @if (Action == "login")
+            {
+                <MudItem xs="12">
+                    <EditForm Model="@_loginModel" OnValidSubmit="HandleLogin">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudTextField @bind-Value="_loginModel.Email" 
+                                            Label="Email" 
+                                            Required="true" 
+                                            RequiredError="Email is required" 
+                                            AdornmentIcon="@Icons.Material.Filled.Email" />
+
+                                <MudTextField @bind-Value="_loginModel.Password" 
+                                            Label="Password" 
+                                            Required="true" 
+                                            RequiredError="Password is required"
+                                            AdornmentIcon="@Icons.Material.Filled.Lock" 
+                                            InputType="InputType.Password" 
+                                            Class="mt-4" />
+
+
+                                <MudCheckBox @bind-Checked="_loginModel.RememberMe" 
+                                            Label="Remember me" 
+                                            Class="mt-4" />
+
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Primary" 
+                                          ButtonType="ButtonType.Submit" 
+                                          FullWidth="true" 
+                                          Class="mt-4">
+                                    Sign In
+                                </MudButton>
+
+                                <MudButton Variant="Variant.Text" 
+                                          Color="Color.Primary" 
+                                          FullWidth="true" 
+                                          Class="mt-2"
+                                          Href="/authentication/register">
+                                    Don't have an account? Sign up
+                                </MudButton>
+
+                            </MudCardContent>
+                        </MudCard>
+                    </EditForm>
+                </MudItem>
+
+                
+                <MudItem xs="12" Class="text-center mt-4">
+                    <MudDivider Class="my-4">Or continue with</MudDivider>
+                    <MudIconButton Icon="@Icons.Custom.Brands.Microsoft" 
+                                  Color="Color.Default" 
+                                  Variant="Variant.Outlined" 
+                                  Class="mr-2"
+                                  OnClick="() => SignInWithProvider("Microsoft")" />
+                    <MudIconButton Icon="@Icons.Custom.Brands.Google" 
+                                  Color="Color.Default" 
+                                  Variant="Variant.Outlined" 
+                                  Class="mr-2"
+                                  OnClick="() => SignInWithProvider("Google")" />
+                </MudItem>
+            }
+            else if (Action == "register")
+            {
+                <MudItem xs="12">
+                    <EditForm Model="@_registerModel" OnValidSubmit="HandleRegister">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudTextField @bind-Value="_registerModel.Name" 
+                                            Label="Full Name" 
+                                            Required="true" 
+                                            RequiredError="Name is required" 
+                                            AdornmentIcon="@Icons.Material.Filled.Person" />
+
+                                <MudTextField @bind-Value="_registerModel.Email" 
+                                            Label="Email" 
+                                            Required="true" 
+                                            RequiredError="Email is required" 
+                                            AdornmentIcon="@Icons.Material.Filled.Email" 
+                                            Class="mt-4" />
+
+
+                                <MudTextField @bind-Value="_registerModel.Password" 
+                                            Label="Password" 
+                                            Required="true" 
+                                            RequiredError="Password is required" 
+                                            AdornmentIcon="@Icons.Material.Filled.Lock" 
+                                            InputType="InputType.Password" 
+                                            Class="mt-4" />
+
+
+                                <MudTextField @bind-Value="_registerModel.ConfirmPassword" 
+                                            Label="Confirm Password" 
+                                            Required="true" 
+                                            RequiredError="Please confirm your password" 
+                                            AdornmentIcon="@Icons.Material.Filled.Lock" 
+                                            InputType="InputType.Password" 
+                                            Class="mt-4" />
+
+
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Primary" 
+                                          ButtonType="ButtonType.Submit" 
+                                          FullWidth="true" 
+                                          Class="mt-4">
+                                    Create Account
+                                </MudButton>
+
+
+                                <MudButton Variant="Variant.Text" 
+                                          Color="Color.Primary" 
+                                          FullWidth="true" 
+                                          Class="mt-2"
+                                          Href="/authentication/login">
+                                    Already have an account? Sign in
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    </EditForm>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public string? Action { get; set; }
+    
+    private string _pageTitle = string.Empty;
+    private LoginModel _loginModel = new();
+    private RegisterModel _registerModel = new();
+    
+    protected override void OnInitialized()
+    {
+        _pageTitle = Action == "login" ? "Sign in to your account" : "Create a new account";
+    }
+    
+    private async Task HandleLogin()
+    {
+        try
+        {
+            await AuthService.LoginAsync(_loginModel);
+            var returnUrl = Navigation.QueryString("returnUrl") ?? "/";
+            Navigation.NavigateTo(returnUrl);
+        }
+        catch (Exception ex)
+        {
+            // Show error
+        }
+    }
+    
+    private async Task HandleRegister()
+    {
+        try
+        {
+            await AuthService.RegisterAsync(_registerModel);
+            Navigation.NavigateTo("/authentication/login");
+        }
+        catch (Exception ex)
+        {
+            // Show error
+        }
+    }
+    
+    private void SignInWithProvider(string provider)
+    {
+        Navigation.NavigateTo($"api/account/external-login?provider={provider}&returnUrl=/", true);
+    }
+    
+    public class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool RememberMe { get; set; }
+    }
+    
+    public class RegisterModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}
