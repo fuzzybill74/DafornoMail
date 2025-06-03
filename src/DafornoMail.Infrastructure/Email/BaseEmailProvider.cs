@@ -124,7 +124,7 @@ public abstract class BaseEmailProvider : IEmailProvider
         var newFolder = await parent.CreateAsync(name, true);
         return new EmailFolder
         {
-            Id = newFolder.Id,
+            Id = Guid.NewGuid(),
             Name = newFolder.Name,
             FullName = newFolder.FullName,
             ParentFolderId = parent.FullName != newFolder.FullName ? parent.FullName : null,
@@ -265,8 +265,9 @@ public abstract class BaseEmailProvider : IEmailProvider
         var searchQuery = new List<SearchQuery> { SearchQuery.SubjectContains(query) };
         if (unreadOnly)
             searchQuery.Add(SearchQuery.NotSeen);
-            
-        var uids = await folder.SearchAsync(SearchQuery.And(searchQuery));
+
+        var combinedQuery = searchQuery.Aggregate(SearchQuery.All, (current, q) => current.And(q));
+        var uids = await folder.SearchAsync(combinedQuery);
         var messages = new List<EmailMessage>();
         
         foreach (var uid in uids)
@@ -411,88 +412,124 @@ public abstract class BaseEmailProvider : IEmailProvider
     public abstract Task<EmailAccount> GetAccountInfoAsync();
     public abstract Task<IEnumerable<EmailFolder>> GetFoldersAsync();
 
-    public Task<bool> RenameFolderAsync(string folderId, string newName)
+    public async Task<bool> RenameFolderAsync(string folderId, string newName)
     {
-        throw new NotImplementedException();
+        if (_imapClient == null || !_imapClient.IsConnected)
+            throw new InvalidOperationException("Not connected to IMAP server");
+
+        var folder = await _imapClient.GetFolderAsync(folderId);
+        await folder.RenameAsync(newName);
+        return true;
     }
 
-    public Task<bool> MoveFolderAsync(string folderId, string newParentFolderId)
+    public async Task<bool> MoveFolderAsync(string folderId, string newParentFolderId)
     {
-        throw new NotImplementedException();
+        if (_imapClient == null || !_imapClient.IsConnected)
+            throw new InvalidOperationException("Not connected to IMAP server");
+
+        var folder = await _imapClient.GetFolderAsync(folderId);
+        var parent = await _imapClient.GetFolderAsync(newParentFolderId);
+        await folder.MoveToAsync(parent);
+        return true;
     }
 
-    public Task<IEnumerable<EmailMessage>> GetMessagesAsync(string folderId, int skip = 0, int take = 50, bool skipAttachments = true, bool headersOnly = false)
+    public async Task<IEnumerable<EmailMessage>> GetMessagesAsync(string folderId, int skip = 0, int take = 50, bool skipAttachments = true, bool headersOnly = false)
     {
-        throw new NotImplementedException();
+        // Basic implementation ignores attachment and header flags
+        return await GetMessagesAsync(folderId, skip, take);
     }
 
-    public Task<EmailMessage> GetMessageAsync(string messageId, bool downloadAttachments = false)
+    public async Task<EmailMessage> GetMessageAsync(string messageId, bool downloadAttachments = false)
     {
-        throw new NotImplementedException();
+        // downloadAttachments flag not supported in base implementation
+        return await GetMessageAsync(messageId, null);
     }
 
-    public Task<EmailMessage> SendMessageAsync(EmailMessage message, IEnumerable<string> attachmentPaths = null)
+    public async Task<EmailMessage> SendMessageAsync(EmailMessage message, IEnumerable<string> attachmentPaths = null)
     {
-        throw new NotImplementedException();
+        // Attachment sending not implemented; delegate to basic sender
+        await SendMessageAsync(message);
+        return message;
     }
 
-    public Task<bool> MoveMessageAsync(string messageId, string targetFolderId)
+    public async Task<bool> MoveMessageAsync(string messageId, string targetFolderId)
     {
-        throw new NotImplementedException();
+        // Assume message resides in Inbox if no source folder is specified
+        await MoveMessageAsync(messageId, _imapClient!.Inbox.FullName, targetFolderId);
+        return true;
     }
 
-    public Task<bool> MoveMessagesAsync(IEnumerable<string> messageIds, string targetFolderId)
+    public async Task<bool> MoveMessagesAsync(IEnumerable<string> messageIds, string targetFolderId)
     {
-        throw new NotImplementedException();
+        foreach (var id in messageIds)
+        {
+            await MoveMessageAsync(id, targetFolderId);
+        }
+        return true;
     }
 
-    public Task<bool> MarkAsReadAsync(string messageId, bool read = true)
+    public async Task<bool> MarkAsReadAsync(string messageId, bool read = true)
     {
-        throw new NotImplementedException();
+        await MarkAsReadAsync(messageId, read, null);
+        return true;
     }
 
-    public Task<bool> MarkAsFlaggedAsync(string messageId, bool flagged = true)
+    public async Task<bool> MarkAsFlaggedAsync(string messageId, bool flagged = true)
     {
-        throw new NotImplementedException();
+        if (_imapClient == null || !_imapClient.IsConnected)
+            throw new InvalidOperationException("Not connected to IMAP server");
+
+        var folder = _imapClient.Inbox;
+        await folder.OpenAsync(FolderAccess.ReadWrite);
+        await folder.StoreAsync(new UniqueId(uint.Parse(messageId)), new StoreFlagsRequest(flagged ? StoreAction.Add : StoreAction.Remove, MessageFlags.Flagged) { Silent = true });
+        return true;
     }
 
-    public Task<bool> DeleteMessageAsync(string messageId, bool permanentDelete = false)
+    public async Task<bool> DeleteMessageAsync(string messageId, bool permanentDelete = false)
     {
-        throw new NotImplementedException();
+        await DeleteMessageAsync(messageId, null);
+        return true;
     }
 
     public Task<IEnumerable<EmailMessage>> GetThreadAsync(string threadId)
     {
-        throw new NotImplementedException();
+        // Threading not supported in base implementation
+        return Task.FromResult<IEnumerable<EmailMessage>>(Array.Empty<EmailMessage>());
     }
 
     public Task<bool> AddLabelToMessageAsync(string messageId, string labelName)
     {
-        throw new NotImplementedException();
+        // Labels not supported in base provider
+        return Task.FromResult(false);
     }
 
     public Task<bool> RemoveLabelFromMessageAsync(string messageId, string labelName)
     {
-        throw new NotImplementedException();
+        // Labels not supported in base provider
+        return Task.FromResult(false);
     }
 
     public Task<IEnumerable<string>> GetLabelsAsync()
     {
-        throw new NotImplementedException();
+        // Labels not supported in base provider
+        return Task.FromResult<IEnumerable<string>>(Array.Empty<string>());
     }
 
-    public Task<IEnumerable<EmailMessage>> SearchMessagesAsync(string query, string? folderId = null, int skip = 0, int take = 50)
+    public async Task<IEnumerable<EmailMessage>> SearchMessagesAsync(string query, string? folderId = null, int skip = 0, int take = 50)
     {
-        throw new NotImplementedException();
+        var results = await SearchMessagesAsync(query, folderId);
+        return results.Skip(skip).Take(take);
     }
 
     public Task<IEnumerable<string>> GetChangedMessageIdsSinceAsync(DateTime since, string folderId)
     {
-        throw new NotImplementedException();
+        // Sync not supported in base provider
+        return Task.FromResult<IEnumerable<string>>(Array.Empty<string>());
     }
 
     public Task<IEnumerable<string>> GetDeletedMessageIdsSinceAsync(DateTime since, string folderId)
     {
-        throw new NotImplementedException();
+        // Sync not supported in base provider
+        return Task.FromResult<IEnumerable<string>>(Array.Empty<string>());
     }
 }
