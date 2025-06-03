@@ -1,11 +1,12 @@
 ﻿// DafornoMail.Infrastructure/Security/KeyVaultService.cs
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using DafornoMail.Core.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
 
 namespace DafornoMail.Infrastructure.Security;
 
-public class KeyVaultService
+public class KeyVaultService : IKeyVaultService
 {
     private readonly SecretClient _secretClient;
     private readonly IConfiguration _configuration;
@@ -56,6 +57,31 @@ public class KeyVaultService
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to delete secret {secretName} from Key Vault", ex);
+        }
+    }
+
+    public async Task<bool> SecretExistsAsync(string secretName)
+    {
+        try
+        {
+            var secret = await _secretClient.GetSecretAsync(secretName);
+            return secret.Value != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task UpdateSecretAsync(string secretName, string secretValue)
+    {
+        try
+        {
+            await _secretClient.SetSecretAsync(secretName, secretValue);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to update secret {secretName} in Key Vault", ex);
         }
     }
 }
