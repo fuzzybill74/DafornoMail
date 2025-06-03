@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 
 namespace DafornoMail.Infrastructure.Email;
 
@@ -240,7 +241,7 @@ public abstract class BaseEmailProvider : IEmailProvider
         await folder.OpenAsync(FolderAccess.ReadWrite);
         await folder.StoreAsync(
             new UniqueId(uint.Parse(messageId)), 
-            new StoreFlagsRequest(read ? MessageAction.Add : MessageAction.Remove, MessageFlags.Seen) { Silent = true });
+            new StoreFlagsRequest(read ? StoreAction.Add : StoreAction.Remove, MessageFlags.Seen) { Silent = true });
     }
 
     public virtual async Task<IEnumerable<EmailMessage>> SearchMessagesAsync(string query, string? folderId = null, bool unreadOnly = false)
