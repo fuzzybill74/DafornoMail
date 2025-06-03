@@ -186,17 +186,24 @@ public abstract class BaseEmailProvider : IEmailProvider
             throw new InvalidOperationException("Not connected to SMTP server");
 
         var mimeMessage = new MimeMessage();
-        mimeMessage.From.Add(new MailboxAddress(message.From, message.SenderEmail));
-        mimeMessage.To.AddRange(message.To.Select(x => new MailboxAddress(x.From, x.Address)));
-        mimeMessage.Cc.AddRange(message.Cc?.Select(x => new MailboxAddress(x.From, x.Address)) ?? Enumerable.Empty<MailboxAddress>());
-        mimeMessage.Bcc.AddRange(message.Bcc?.Select(x => new MailboxAddress(x.Name, x.Address)) ?? Enumerable.Empty<MailboxAddress>());
+        mimeMessage.From.Add(new MailboxAddress(message.SenderName ?? string.Empty, message.SenderEmail));
+
+        if (!string.IsNullOrWhiteSpace(message.To))
+            mimeMessage.To.AddRange(InternetAddressList.Parse(message.To));
+
+        if (!string.IsNullOrWhiteSpace(message.Cc))
+            mimeMessage.Cc.AddRange(InternetAddressList.Parse(message.Cc));
+
+        if (!string.IsNullOrWhiteSpace(message.Bcc))
+            mimeMessage.Bcc.AddRange(InternetAddressList.Parse(message.Bcc));
+
         mimeMessage.Subject = message.Subject;
-        
+
         var builder = new BodyBuilder();
         if (!string.IsNullOrEmpty(message.HtmlBody))
             builder.HtmlBody = message.HtmlBody;
-        if (!string.IsNullOrEmpty(message.HtmlBody))
-            builder.TextBody = message.HtmlBody;
+        if (!string.IsNullOrEmpty(message.TextBody))
+            builder.TextBody = message.TextBody;
             
         mimeMessage.Body = builder.ToMessageBody();
         
@@ -352,18 +359,20 @@ public abstract class BaseEmailProvider : IEmailProvider
     {
         return new EmailMessage
         {
-            Id = message.MessageId,
+            MessageId = message.MessageId,
             Subject = message.Subject,
-            TextBody= message.TextBody,
+            TextBody = message.TextBody,
             HtmlBody = message.HtmlBody,
             Date = message.Date.UtcDateTime,
-            From = new EmailAddress { Name = message.From.Mailboxes.First().Name, Address = message.From.Mailboxes.First().Address },
-            To = message.To.Mailboxes.Select(x => new EmailAddress { Name = x.Name, Address = x.Address }).ToList(),
-            Cc = message.Cc.Mailboxes.Select(x => new EmailAddress { Name = x.Name, Address = x.Address }).ToList(),
-            Bcc = message.Bcc.Mailboxes.Select(x => new EmailAddress { Name = x.Name, Address = x.Address }).ToList(),
-            IsRead = !message.Flags.HasValue || !message.Flags.Value.HasFlag(MessageFlags.Seen),
+            From = message.From.ToString(),
+            SenderName = message.From.Mailboxes.FirstOrDefault()?.Name ?? string.Empty,
+            SenderEmail = message.From.Mailboxes.FirstOrDefault()?.Address ?? string.Empty,
+            To = message.To.ToString(),
+            Cc = message.Cc?.ToString(),
+            Bcc = message.Bcc?.ToString(),
+            IsRead = message.Flags?.HasFlag(MessageFlags.Seen) == true,
             HasAttachments = message.Attachments.Any(),
-            Headers = message.Headers.ToDictionary(h => h.Field, h => h.Value)
+            Headers = null
         };
     }
 
