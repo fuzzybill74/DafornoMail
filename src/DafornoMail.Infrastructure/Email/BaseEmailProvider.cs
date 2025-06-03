@@ -21,7 +21,7 @@ public abstract class BaseEmailProvider : IEmailProvider
 {
     protected readonly ILogger _logger;
     protected ImapClient? _imapClient;
-    protected SmtpClient? _smtpClient;
+    protected MailKit.Net.Smtp.SmtpClient? _smtpClient;
     protected string? _email;
     protected string? _password;
     protected string? _accessToken;
@@ -85,7 +85,7 @@ public abstract class BaseEmailProvider : IEmailProvider
 
     protected virtual async Task ConnectSmtpAsync()
     {
-        _smtpClient = new SmtpClient();
+        _smtpClient = new MailKit.Net.Smtp.SmtpClient();
         await _smtpClient.ConnectAsync(GetSmtpServer(), GetSmtpPort(), GetSmtpSslOptions());
 
         if (_useOAuth && !string.IsNullOrEmpty(_accessToken))
