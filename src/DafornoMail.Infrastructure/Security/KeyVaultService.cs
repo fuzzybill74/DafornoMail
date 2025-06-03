@@ -1,6 +1,7 @@
 ﻿// DafornoMail.Infrastructure/Security/KeyVaultService.cs
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using DafornoMail.Core.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
 using DafornoMail.Core.Interfaces.Services;
 
@@ -64,8 +65,8 @@ public class KeyVaultService : IKeyVaultService
     {
         try
         {
-            await _secretClient.GetSecretAsync(secretName);
-            return true;
+            var secret = await _secretClient.GetSecretAsync(secretName);
+            return secret.Value != null;
         }
         catch (Azure.RequestFailedException ex) when (ex.Status == 404)
         {
@@ -84,4 +85,6 @@ public class KeyVaultService : IKeyVaultService
             throw new InvalidOperationException($"Failed to update secret {secretName} in Key Vault", ex);
         }
     }
+
 }
+

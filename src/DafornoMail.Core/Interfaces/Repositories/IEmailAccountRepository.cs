@@ -8,6 +8,12 @@ namespace DafornoMail.Core.Interfaces.Repositories
         Task<EmailAccount> GetByIdAsync(Guid id);
         Task<IEnumerable<EmailAccount>> GetAllAsync();
         Task<EmailAccount> AddAsync(EmailAccount account);
+
+
+        /// <summary>
+        /// Retrieves an account by its identifier.
+        /// </summary>
+        Task<EmailAccount> GetByIdAsync(Guid id);
         Task UpdateAsync(EmailAccount account);
         Task DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
@@ -17,5 +23,6 @@ namespace DafornoMail.Core.Interfaces.Repositories
         Task<IEnumerable<EmailAccount>> GetByUserIdAsync(string userId);
         Task SetDefaultAccountAsync(Guid accountId, string userId);
         Task<EmailAccount> GetDefaultAccountAsync(string userId);
+
     }
 }

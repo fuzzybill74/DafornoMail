@@ -7,6 +7,7 @@ using DafornoMail.Infrastructure.Email;
 using DafornoMail.Infrastructure.Email.Providers;
 using DafornoMail.Infrastructure.Repositories;
 using DafornoMail.Infrastructure.Security;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -100,9 +101,9 @@ public class EmailService : IEmailService
         throw new NotImplementedException();
     }
 
-    public Task<EmailAccount> GetAccountAsync(Guid accountId)
+    public async Task<EmailAccount> GetAccountAsync(Guid accountId)
     {
-        throw new NotImplementedException();
+        return await _accountRepository.GetByIdAsync(accountId);
     }
 
     public Task<IEnumerable<EmailAccount>> GetUserAccountsAsync(string userId)
@@ -110,9 +111,27 @@ public class EmailService : IEmailService
         throw new NotImplementedException();
     }
 
-    public Task<IEnumerable<EmailFolder>> GetFoldersAsync(Guid accountId, bool forceRefresh = false)
+    public async Task<IEnumerable<EmailFolder>> GetFoldersAsync(Guid accountId, bool forceRefresh = false)
     {
-        throw new NotImplementedException();
+        if (!forceRefresh)
+        {
+            return await _folderRepository.GetByAccountIdAsync(accountId);
+        }
+
+        var account = await _accountRepository.GetByIdAsync(accountId);
+        var password = await GetPasswordFromKeyVault(account.KeyVaultSecretName);
+        var provider = CreateProvider(account.Provider);
+
+        try
+        {
+            await provider.ConnectAsync(account.Email, password);
+            var folders = await provider.GetFoldersAsync();
+            return folders;
+        }
+        finally
+        {
+            provider.Disconnect();
+        }
     }
 
     public Task<EmailFolder> GetFolderAsync(Guid folderId)
@@ -140,9 +159,37 @@ public class EmailService : IEmailService
         throw new NotImplementedException();
     }
 
-    public Task<IEnumerable<EmailMessage>> GetMessagesAsync(Guid accountId, Guid? folderId = null, int page = 1, int pageSize = 50, string? searchQuery = null, bool unreadOnly = false, string? sortBy = "Date", bool sortDescending = true)
+    public async Task<IEnumerable<EmailMessage>> GetMessagesAsync(
+        Guid accountId,
+        Guid? folderId = null,
+        int page = 1,
+        int pageSize = 50,
+        string? searchQuery = null,
+        bool unreadOnly = false,
+        string? sortBy = "Date",
+        bool sortDescending = true)
     {
-        throw new NotImplementedException();
+        IEnumerable<EmailMessage> messages;
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            messages = await _messageRepository.SearchAsync(accountId, searchQuery!, page, pageSize, folderId);
+        }
+        else if (folderId.HasValue)
+        {
+            messages = await _messageRepository.GetByFolderAsync(folderId.Value, page, pageSize, sortBy!, sortDescending);
+        }
+        else
+        {
+            messages = await _messageRepository.GetByAccountIdAsync(accountId, page, pageSize, sortBy!, sortDescending);
+        }
+
+        if (unreadOnly)
+        {
+            messages = messages.Where(m => !m.IsRead);
+        }
+
+        return messages;
     }
 
     public Task<EmailMessage> GetMessageAsync(Guid messageId)

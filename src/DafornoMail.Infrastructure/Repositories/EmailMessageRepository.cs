@@ -4,16 +4,42 @@ using DafornoMail.Core.Models;
 using DafornoMail.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace DafornoMail.Infrastructure.Repositories;
 
 public class EmailMessageRepository : BaseRepository<EmailMessage>, IEmailMessageRepository
 {
     public EmailMessageRepository(
-        ApplicationDbContext context, 
+        ApplicationDbContext context,
         ILogger<EmailMessageRepository> logger)
         : base(context, logger)
     {
+    }
+
+    public async Task<IEnumerable<EmailMessage>> GetByAccountIdAsync(
+        Guid accountId,
+        int page = 1,
+        int pageSize = 50,
+        string sortBy = "Date",
+        bool sortDescending = true)
+    {
+        var query = _dbSet.Where(m => m.EmailAccountId == accountId && !m.IsDeleted);
+
+        query = sortBy.ToLower() switch
+        {
+            "subject" => sortDescending
+                ? query.OrderByDescending(m => m.Subject)
+                : query.OrderBy(m => m.Subject),
+            "from" => sortDescending
+                ? query.OrderByDescending(m => m.SenderName ?? m.SenderEmail ?? m.From)
+                : query.OrderBy(m => m.SenderName ?? m.SenderEmail ?? m.From),
+            _ => sortDescending
+                ? query.OrderByDescending(m => m.Date)
+                : query.OrderBy(m => m.Date)
+        };
+
+        return await ApplyPaging(query, page, pageSize).ToListAsync();
     }
 
 
